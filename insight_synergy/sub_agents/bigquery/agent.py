@@ -22,7 +22,7 @@ def setup_before_agent_call(callback_context: CallbackContext) -> None:
             tools.get_database_settings()
 
 database_agent = Agent(
-    model=os.getenv("DATA_DETECTIVE_MODEL"),
+    model=os.getenv("ANALYTICS_AGENT_MODEL"),
     name="database_agent",
     instruction=return_instructions_bigquery(),
     tools=[
