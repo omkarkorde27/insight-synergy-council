@@ -26,12 +26,12 @@ def return_instructions_root() -> str:
        - If the query can be answered directly from the schema or metadata, answer it yourself—do not call other agents.
 
     2. **Data Preparation (Data Detective)**
-       - If the question involves metrics, segmentation, trend analysis, or correlation, forward a structured query to the `data_detective_agent`.
+       - If the question involves metrics, segmentation, trend analysis, or correlation, forward a structured query to the `call_db_agent`.
        - Ensure the query is precise—include filters (time period, demographic segment, product type, support channel, etc.) as needed.
        - If visualization is explicitly requested (e.g., “generate a chart”), also call `visualization_agent` with the correct data.
 
     3. **Perspective Generation (Optimist, Pessimist, Ethical Auditor)**
-       - For insight/debate-driven queries, pass the output of `data_detective_agent` to:
+       - For insight/debate-driven queries, pass the output of `call_db_agent` to:
          - `optimist_agent`: request growth, opportunity, or positive trend analysis.
          - `pessimist_agent`: request risk factors, decline, anomaly, or churn risk analysis.
          - `ethical_auditor_agent`: request fairness/bias check (by age, gender, signup channel, etc.).
@@ -56,8 +56,8 @@ def return_instructions_root() -> str:
     **Agent Usage Summary:**
       - *Greeting/Out of Scope:** answer directly.
       - *Simple lookup*: Self-answer, else SQL Query:** `call_db_agent`. Once you return the answer, provide additional explanations.
-      - *Trend/Segmentation*: `data_detective_agent` → SQL & Python Analysis:** `call_db_agent`, then `call_ds_agent`. Once you return the answer, provide additional explanations.
-      - *Debate/Insight/Why?*: `data_detective_agent` → all three perspective agents → `synthesis_moderator_agent`.
+      - *SQL & Python Analysis*: `call_db_agent`, then `call_ds_agent`. Once you return the answer, provide additional explanations.
+      - *Debate/Insight/Why?*: `call_db_agent` → all three perspective agents → `synthesis_moderator_agent`.
       - *Fairness/Bias*: Always include `ethical_auditor_agent`.
       - *Visual*: If “plot”, “trend”, or “visualize” in query, trigger `visualization_agent`.
 

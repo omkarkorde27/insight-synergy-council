@@ -11,6 +11,7 @@ from insight_synergy.utils.utils import get_env_var
 from google.adk.tools import ToolContext
 from google.cloud import bigquery
 from google.genai import Client
+from decimal import Decimal
 
 from .chase_sql import chase_constants
 
@@ -192,6 +193,25 @@ The database structure is defined by the following table schemas (possibly with 
 
     return sql
 
+def serialize_value(value):
+    """Convert various data types to JSON-serializable formats.
+    
+    Args:
+        value: The value to serialize
+        
+    Returns:
+        A JSON-serializable version of the value
+    """
+    if isinstance(value, datetime.time):
+        return value.strftime("%H:%M:%S")
+    elif isinstance(value, datetime.date):
+        return value.strftime("%Y-%m-%d")
+    elif isinstance(value, datetime.datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    elif hasattr(value, 'isoformat'):  # Handle other date/time types
+        return value.isoformat()
+    else:
+        return value
 
 def run_bigquery_validation(
     sql_string: str,
@@ -267,22 +287,19 @@ def run_bigquery_validation(
         results = query_job.result()  # Get the query results
 
         if results.schema:  # Check if query returned data
-            rows = [
-                {
-                    key: (
-                        value
-                        if not isinstance(value, datetime.date)
-                        else value.strftime("%H:%M:%S")
-                    )
-                    for (key, value) in row.items()
-                }
-                for row in results
-            ][
-                :MAX_NUM_ROWS
-            ]  # Convert BigQuery RowIterator to list of dicts
-            # return f"Valid SQL. Results: {rows}"
+            # Convert results with proper serialization
+            rows = []
+            for row in results:
+                serialized_row = {}
+                for key, value in row.items():
+                    serialized_row[key] = serialize_value(value)
+                rows.append(serialized_row)
+                
+                # Limit the number of rows
+                if len(rows) >= MAX_NUM_ROWS:
+                    break
+        
             final_result["query_result"] = rows
-
             tool_context.state["query_result"] = rows
 
         else:
