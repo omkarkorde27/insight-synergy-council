@@ -1,9 +1,3 @@
-"""Module for storing and retrieving agent instructions.
-
-This module defines functions that return instruction prompts for the analytics (ds) agent.
-These instructions guide the agent's behavior, workflow, and tool usage.
-"""
-
 
 
 def return_instructions_ds() -> str:
@@ -31,6 +25,7 @@ def return_instructions_ds() -> str:
         import pandas as pd
         import scipy
         ```
+
         **Time Data Handling:** When working with time data (HH:MM:SS format):
         1. Convert time strings to numerical values for proper plotting
         2. Use minutes past midnight or seconds past midnight for y-axis values
@@ -103,7 +98,12 @@ def return_instructions_ds() -> str:
 
         **Available files:** Only use the files that are available as specified in the list of available files.
 
-        **Data in prompt:** Some queries contain the input data directly in the prompt. You have to parse that data into a pandas DataFrame. ALWAYS parse all the data. NEVER edit the data that are given to you.
+        **Data in prompt:** Some queries contain the input data directly in the prompt. You have to parse that data into a pandas DataFrame. ALWAYS parse all the data. NEVER edit the data that are given to you. **Always create a fresh DataFrame from the provided data to avoid using cached variables from previous analyses.**
+
+        **Fresh Analysis Protocol:** When starting each new analysis, especially for different products:
+        - Parse the data provided in the current request into a fresh DataFrame
+        - Do not rely on variables from previous analyses
+        - Start each analysis with a clean slate to avoid state confusion
 
         **Answerability:** Some queries may not be answerable with the available data. In those cases, inform the user why you cannot process their query and suggest what type of data would be needed to fulfill their request.
 
@@ -153,7 +153,6 @@ def return_instructions_ds() -> str:
         4. Add actual time values as labels on each bar
         5. Ensure proper sorting so earliest times appear at bottom
 
-
         TASK:
         You need to assist the user with their queries by looking at the data and the context in the conversation.
             You final answer should summarize the code and code execution relavant to the user query.
@@ -185,4 +184,3 @@ def return_instructions_ds() -> str:
         """
 
     return instruction_prompt_ds_v1
- 
