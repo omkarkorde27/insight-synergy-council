@@ -69,6 +69,21 @@ Database admin instructions (please *unconditionally* follow these instructions.
 15. **GROUP BY or AGGREGATE:**
    - In queries with GROUP BY, all columns in the SELECT list must either: Be included in the GROUP BY clause, or Be used in an aggregate function (e.g., MAX, MIN, AVG, COUNT, SUM).
 
+16. **Anomaly Detection and Handling**:
+    - Always check for data skew/imbalance when aggregating (e.g., gender ratios > 70/30)
+    - Include data validation checks for unexpected zeros or nulls in critical fields
+    - Add warning comments in SQL when potential data issues are detected
+    
+17. **Edge Case Handling**:
+    - Explicitly handle missing demographic groups using COALESCE/IFNULL
+    - Generate complete dimension sets with CROSS JOIN + UNNEST for comprehensive reporting
+    - Add diagnostic columns for data integrity checks
+    
+18. **Result Validation**:
+    - Include automated reasonableness checks in the query (e.g., EXPECTED_RANGE())
+    - Add diagnostic comments when results deviate from expected patterns
+    - Provide data verification suggestions in SQL comments
+
 Here are some examples
 ===========
 Example 1
@@ -554,6 +569,108 @@ GROUP BY
 ORDER BY 
   headache_count DESC
 LIMIT 1;
+```
+
+===========
+Example 9: Demographic Reporting with Validation
+
+**************************
+【Database Info】
+CREATE TABLE `{BQ_PROJECT_ID}.subscriptions.customer_info` (
+   customer_id STRING,
+   age INT64,
+   gender STRING
+);
+
+CREATE TABLE `{BQ_PROJECT_ID}.subscriptions.customer_product` (
+   customer_id STRING,
+   product STRING
+);
+
+**************************
+【Question】
+Fetch subscription count of prd_2 by age and gender. Present as: "age X male: Y, age X female: Z"
+
+**************************
+【Answer】
+Repeating the question and generating the SQL with Query Plan.
+
+**Query Plan**:
+
+**Preparation Steps:**
+1. Initialize environment with validation flags
+2. Generate complete age-gender matrix
+3. Prepare anomaly detection counters
+
+**Dimension Matrix Creation:**
+1. Scan customer_info for distinct age values
+2. Create gender dimension array ['male','female']
+3. Cross join ages and genders → AgeGenderBase
+
+**Data Validation Layer:**
+1. Left join with customer_product on prd_2
+2. Implement zero-count detection
+3. Set validation thresholds for data skew
+
+**Result Assembly:**
+1. Format results with COALESCE for missing values
+2. Embed validation warnings in output string
+3. Order by age for sequential presentation
+
+**Anomaly Reporting:**
+1. Generate warning flags for:
+   - Unexpected zero counts
+   - Gender distribution skew >70/30
+   - Data gaps in age ranges
+2. Append warnings to result string
+
+**Final Optimized SQL Query:**
+```sql
+WITH AgeGenderBase AS (
+  SELECT 
+    ages.age,
+    genders.gender
+  FROM (SELECT DISTINCT age FROM `{BQ_PROJECT_ID}.subscriptions.customer_info`) ages
+  CROSS JOIN UNNEST(['male', 'female']) genders
+),
+
+SubscriptionCounts AS (
+  SELECT
+    ag.age,
+    ag.gender,
+    COUNT(DISTINCT IF(cp.product = 'prd_2', ci.customer_id, NULL)) AS count
+  FROM AgeGenderBase ag
+  LEFT JOIN `{BQ_PROJECT_ID}.subscriptions.customer_info` ci
+    ON ag.age = ci.age AND ag.gender = ci.gender
+  LEFT JOIN `{BQ_PROJECT_ID}.subscriptions.customer_product` cp
+    ON ci.customer_id = cp.customer_id
+  GROUP BY 1, 2
+),
+
+ValidationChecks AS (
+  SELECT
+    age,
+    IF(COUNTIF(gender = 'male' AND count = 0) > 0, 
+        'WARNING: Zero male count', NULL) AS male_alert,
+    IF(COUNTIF(gender = 'female' AND count = 0) > 0,
+        'WARNING: Zero female count', NULL) AS female_alert
+  FROM SubscriptionCounts
+  GROUP BY 1
+)
+
+SELECT
+  CONCAT(
+    'age ', age, ' male: ', 
+    COALESCE(CAST(MAX(IF(gender='male', count, 0) AS STRING), '0'),
+    ', age ', age, ' female: ',
+    COALESCE(CAST(MAX(IF(gender='female', count, 0) AS STRING), '0'),
+    ' | ', 
+    COALESCE(male_alert, ''), COALESCE(female_alert, '')
+  ) AS result
+FROM SubscriptionCounts sc
+JOIN ValidationChecks vc USING (age)
+GROUP BY age, male_alert, female_alert
+ORDER BY age
 ```
 
 Now is the real question, following the instruction and examples, generate the GoogleSQL with Recursive Divide-and-Conquer approach.
